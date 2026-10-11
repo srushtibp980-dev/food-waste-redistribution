@@ -7,8 +7,11 @@ import { publicPlatformScript } from "./publicConfig";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { getDb } from "../db";
 
 async function startServer() {
+  await getDb();
+  console.log("[Database] PostgreSQL-only storage is enabled.");
   const app = express();
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads

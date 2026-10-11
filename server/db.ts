@@ -25,7 +25,7 @@ import { ENV } from "./_core/env";
 
 export async function checkDatabaseConnection(): Promise<{
   connected: boolean;
-  provider: "postgres" | "in-memory";
+  provider: "postgres";
   configured: boolean;
   host?: string;
   error?: string;
@@ -35,7 +35,7 @@ export async function checkDatabaseConnection(): Promise<{
     return {
       connected: false,
       configured: false,
-      provider: "in-memory",
+      provider: "postgres",
       error: "DATABASE_URL environment variable is not set.",
     };
   }
@@ -59,7 +59,7 @@ export async function checkDatabaseConnection(): Promise<{
     return {
       connected: false,
       configured: true,
-      provider: "in-memory",
+      provider: "postgres",
       error: err?.message || "Failed to connect to database host.",
     };
   }
@@ -69,21 +69,11 @@ let _db: ReturnType<typeof drizzle> | null = null;
 let _dbTested = false;
 
 export async function getDb() {
-  if (_dbTested) return _db;
+  if (_dbTested && _db) return _db;
   const dbUrl = process.env.DATABASE_URL;
 
-  // Ignore dummy/placeholder database URLs or local unreachable hosts
-  if (
-    !dbUrl ||
-    dbUrl.includes("@host:") ||
-    dbUrl.includes("user:password") ||
-    dbUrl.includes("localhost") ||
-    dbUrl.includes("127.0.0.1")
-  ) {
-    console.warn("[Database] No valid external database configured, using in-memory store.");
-    _db = null;
-    _dbTested = true;
-    return null;
+  if (!dbUrl || dbUrl.includes("YOUR_PASSWORD") || dbUrl.includes("USER:PASSWORD")) {
+    throw new Error("PostgreSQL is required. Set DATABASE_URL in .env before starting FoodShare.");
   }
 
   try {
@@ -94,12 +84,12 @@ export async function getDb() {
     _db = db;
     console.log("[Database] Connected successfully to database.");
   } catch (error) {
-    console.warn("[Database] Connection failed, using in-memory store fallback:", error);
-    _db = null;
+    _dbTested = true;
+    throw new Error(`PostgreSQL connection failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 
   _dbTested = true;
-  return _db;
+  return _db!;
 }
 
 // ============================================================================
